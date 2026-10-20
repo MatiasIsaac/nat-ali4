@@ -1,0 +1,84 @@
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+  }
+
+  div{
+    margin: auto;
+  position:relative;
+  margin-bottom: 10px
+  }
+
+  #bgStage {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(115deg, #105770 15%, #291737 45%, #92220f 85%);
+    z-index: 0; /* queda detrás de tu contenido gracias al orden en el DOM + z-index del contenido */
+  }
+  #bgNet {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* ---- Solo de ejemplo: contenido de muestra encima del fondo ---- */
+  #demoContent {
+    position: relative;
+    z-index: 1;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #fff;
+    text-align: center;
+  }
+  #demoContent .card {
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 14px;
+    padding: 40px 50px;
+    backdrop-filter: blur(6px);
+  }
+
+button {
+  position: relative;
+  width: 100%;
+  height: 40px;
+  background: #F00A0A;
+  box-shadow: 0 0 10px #F00A0A;
+  font-size: 16px;
+  color: #000;
+  font-weight: 500;
+  cursor:pointer;
+  border-radius: 30px;
+  border: none;
+  outline: none;
+}
+#form {
+  width: 400px;
+  padding: 10px;
+  font-size: 18px;
+  outline:none;
+  background: linear-gradient(to left top, #000, #7E94A3) fixed;
+  border-radius: 10px;
+  border: 2px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.8);
+  transition: all 0.5s;
+}
+
+#form:hover {
+  border: 2px solid rgba(255,255,255,0.5);
+}
+#form:focus {
+  border: 2px solid rgba(255,255,255,0.5);
+  background: linear-gradient(to left top, #000, #248BD0) fixed;
+}
