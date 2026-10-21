@@ -150,105 +150,88 @@
     </form>
   </div>
 </div>
-
 <script>
-  // ATENCIÓN: Reemplaza con tus claves de Supabase
-  const SUPABASE_URL = 'https://rrqtakkrirvgxdkzhkqn.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJycXRha2tyaXJ2Z3hka3poa3FuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNzYwODMsImV4cCI6MjA5OTY1MjA4M30.A1sKtEgMftusFCc9MxPjcrMqp6cY-3VkLKiPn_etOJI';
+  // 1. REEMPLAZA ESTOS DOS VALORES CON TUS CLAVES REALES DE SUPABASE
+  const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';
+  const SUPABASE_KEY = 'TU-ANON-KEY';
+
   const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const loginForm = document.getElementById('loginForm');
-  const loginBtn = document.getElementById('loginBtn');
-  const errorMsg = document.getElementById('errorMsg');
+  const adminSlider = document.getElementById('adminSlider');
+  const adminValue = document.getElementById('adminValue');
+  const saveBtn = document.getElementById('saveBtn');
+  const statusMsg = document.getElementById('statusMsg');
 
-  // Redirigir al panel si ya hay una sesión activa
-  async function checkExistingSession() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      window.location.href = 'admin.html';
+  // Función para verificar sesión antes de mostrar el contenido
+  async function checkAuth() {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session) {
+        // Si no hay sesión, manda inmediatamente al login
+        window.location.href = 'login.html';
+        return;
+      }
+
+      // Si sí hay sesión, hace visible el panel y carga el valor actual
+      document.getElementById('sliderWrap').style.display = 'block';
+      statusMsg.textContent = "El Kirameter está listo para ser actualizado";
+      statusMsg.style.color = "rgba(255,255,255,0.8)";
+      loadInitialValue();
+    } catch (err) {
+      // Si falla la URL de Supabase o la clave, redirige al login por seguridad
+      window.location.href = 'login.html';
     }
   }
 
-  // Manejar el inicio de sesión
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    loginBtn.disabled = true;
-    errorMsg.textContent = '';
+  async function loadInitialValue() {
+    const { data, error } = await supabase
+      .from('kirameter')
+      .select('value')
+      .eq('id', 1)
+      .single();
 
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
+    if (data) {
+      adminSlider.value = data.value;
+      adminValue.textContent = data.value + '%';
+    }
+  }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
+  adminSlider.addEventListener('input', (e) => {
+    adminValue.textContent = e.target.value + '%';
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Guardando...";
+    statusMsg.textContent = "Enviando actualización...";
+
+    const newValue = parseInt(adminSlider.value);
+
+    const { error } = await supabase
+      .from('kirameter')
+      .update({ value: newValue })
+      .eq('id', 1);
 
     if (error) {
-      errorMsg.textContent = 'Credenciales incorrectas o usuario no encontrado.';
-      loginBtn.disabled = false;
+      statusMsg.textContent = "Error al guardar: " + error.message;
+      statusMsg.style.color = "#ff4d4d";
     } else {
-      window.location.href = 'admin.html';
+      statusMsg.textContent = "¡Cambio guardado exitosamente!";
+      statusMsg.style.color = "#00ffcc";
     }
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Guardar Cambio Global";
   });
 
-  // --- Fondo Animado (Canvas de partículas en red) ---
-  const canvas = document.getElementById('net');
-  const ctx = canvas.getContext('2d');
-  let width = canvas.width = window.innerWidth;
-  let height = canvas.height = window.innerHeight;
-
-  const points = [];
-  const maxPoints = 50;
-  const connectionDist = 120;
-
-  class Point {
-    constructor() {
-      this.x = Math.random() * width;
-      this.y = Math.random() * height;
-      this.vx = (Math.random() - 0.5) * 0.8;
-      this.vy = (Math.random() - 0.5) * 0.8;
-    }
-    update() {
-      this.x += this.vx;
-      this.y += this.vy;
-      if (this.x < 0 || this.x > width) this.vx *= -1;
-      if (this.y < 0 || this.y > height) this.vy *= -1;
-    }
+  async function logout() {
+    await supabase.auth.signOut();
+    window.location.href = 'login.html';
   }
 
-  for (let i = 0; i < maxPoints; i++) {
-    points.push(new Point());
-  }
-
-  function animate() {
-    ctx.clearRect(0, 0, width, height);
-    for (let i = 0; i < points.length; i++) {
-      const p1 = points[i];
-      p1.update();
-      for (let j = i + 1; j < points.length; j++) {
-        const p2 = points[j];
-        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-        if (dist < connectionDist) {
-          const alpha = (1 - dist / connectionDist) * 0.15;
-          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
-          ctx.stroke();
-        }
-      }
-    }
-    requestAnimationFrame(animate);
-  }
-
-  window.addEventListener('resize', () => {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-  });
-
-  checkExistingSession();
-  animate();
+  // Ejecutar verificación al cargar la página
+  checkAuth();
 </script>
 </body>
 </html>
