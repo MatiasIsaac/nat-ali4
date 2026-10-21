@@ -36,6 +36,7 @@
   }
   
   #sliderWrap {
+    display: none;
     position: relative;
     width: 85%;
     max-width: 600px;
@@ -231,17 +232,21 @@
   const logoutBtn = document.getElementById('logoutBtn');
 
   // 1. Verificar Autenticación del Administrador
-  async function checkAuth() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      window.location.href = 'login.html'; // Redirige si no hay sesión
-    } else {
-      statusMsg.textContent = "El Kirameter está listo para ser actualizado";
-      statusMsg.style.color = "rgba(255,255,255,0.8)";
-      loadInitialValue();
-    }
+ async function checkAuth() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+
+  // Si no hay sesión o ocurre un error, redirige inmediatamente a login.html
+  if (error || !session) {
+    window.location.replace('login.html'); // Usamos replace para no dejar historial
+    return;
   }
 
+  // Si la sesión existe, mostramos el panel de administración
+  document.getElementById('sliderWrap').style.display = 'block';
+  statusMsg.textContent = "El Kirameter está listo para ser actualizado";
+  statusMsg.style.color = "rgba(255,255,255,0.8)";
+  loadInitialValue();
+}
   // 2. Cargar el valor actual de la Base de Datos
   async function loadInitialValue() {
     const { data, error } = await supabase
