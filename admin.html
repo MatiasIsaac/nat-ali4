@@ -218,89 +218,96 @@
 </div>
 
 <script>
-  // ATENCIÓN: Reemplaza con tus claves de Supabase
+  // TUS CLAVES
   const SUPABASE_URL = 'https://rrqtakkrirvgxdkzhkqn.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJycXRha2tyaXJ2Z3hka3poa3FuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNzYwODMsImV4cCI6MjA5OTY1MjA4M30.A1sKtEgMftusFCc9MxPjcrMqp6cY-3VkLKiPn_etOJI';
 
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // Forzar la redirección si el script se tarda en ejecutar
+  let isAuthed = false;
 
-  const slider = document.getElementById('slider');
-  const thumb = document.getElementById('thumb');
-  const trackFill = document.getElementById('trackFill');
-  const updateBtn = document.getElementById('updateBtn');
-  const statusMsg = document.getElementById('statusMsg');
-  const logoutBtn = document.getElementById('logoutBtn');
+  async function checkAuth() {
+    try {
+      // Verificar si la librería cargó correctamente
+      if (typeof supabase === 'undefined' || !supabase.createClient) {
+        window.location.replace('login.html');
+        return;
+      }
 
-  // 1. Verificar Autenticación del Administrador
- async function checkAuth() {
-  const { data: { session }, error } = await supabase.auth.getSession();
+      const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      const { data: { session }, error } = await client.auth.getSession();
 
-  // Si no hay sesión o ocurre un error, redirige inmediatamente a login.html
-  if (error || !session) {
-    window.location.replace('login.html'); // Usamos replace para no dejar historial
-    return;
-  }
+      if (error || !session) {
+        // Redirige al login si no hay sesión
+        window.location.replace('login.html');
+        return;
+      }
 
-  // Si la sesión existe, mostramos el panel de administración
-  document.getElementById('sliderWrap').style.display = 'block';
-  statusMsg.textContent = "El Kirameter está listo para ser actualizado";
-  statusMsg.style.color = "rgba(255,255,255,0.8)";
-  loadInitialValue();
-}
-  // 2. Cargar el valor actual de la Base de Datos
-  async function loadInitialValue() {
-    const { data, error } = await supabase
-      .from('kirameter')
-      .select('value')
-      .eq('id', 1)
-      .single();
+      // Si pasa la autenticación, mostramos la interfaz
+      isAuthed = true;
+      document.getElementById('sliderWrap').style.display = 'block';
+      document.getElementById('statusMsg').textContent = "El Kirameter está listo para ser actualizado";
+      
+      // Conectar eventos del slider una vez autenticado
+      initAdminPanel(client);
 
-    if (data) {
-      slider.value = data.value;
-      updateSliderPosition();
+    } catch (err) {
+      window.location.replace('login.html');
     }
   }
 
-  // 3. Actualizar elementos visuales del slider
-  function updateSliderPosition() {
-    const value = slider.value;
-    thumb.style.left = value + '%';
-    trackFill.style.background = `linear-gradient(90deg, #bbf09b 0%, #f2a13c ${value}%, rgba(255,255,255,0.1) ${value}%)`;
+  function initAdminPanel(client) {
+    const slider = document.getElementById('slider');
+    const thumb = document.getElementById('thumb');
+    const trackFill = document.getElementById('trackFill');
+    const updateBtn = document.getElementById('updateBtn');
+    const statusMsg = document.getElementById('statusMsg');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    async function loadInitialValue() {
+      const { data } = await client.from('kirameter').select('value').eq('id', 1).single();
+      if (data) {
+        slider.value = data.value;
+        updateSliderPosition();
+      }
+    }
+
+    function updateSliderPosition() {
+      const value = slider.value;
+      thumb.style.left = value + '%';
+      trackFill.style.background = `linear-gradient(90deg, #bbf09b 0%, #f2a13c ${value}%, rgba(255,255,255,0.1) ${value}%)`;
+    }
+
+    slider.addEventListener('input', () => {
+      requestAnimationFrame(updateSliderPosition);
+      statusMsg.textContent = "Cambios pendientes de guardar";
+      statusMsg.style.color = "#f2a13c";
+    });
+
+    updateBtn.addEventListener('click', async () => {
+      updateBtn.disabled = true;
+      statusMsg.textContent = "Guardando cambio...";
+      statusMsg.style.color = "#bbf09b";
+
+      const { error } = await client.from('kirameter').update({ value: parseInt(slider.value) }).eq('id', 1);
+
+      if (error) {
+        statusMsg.textContent = "Error: " + error.message;
+        statusMsg.style.color = "#ff6b6b";
+      } else {
+        statusMsg.textContent = "¡Kirameter actualizado con éxito!";
+      }
+      updateBtn.disabled = false;
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      await client.auth.signOut();
+      window.location.replace('login.html');
+    });
+
+    loadInitialValue();
   }
 
-  slider.addEventListener('input', () => {
-    requestAnimationFrame(updateSliderPosition);
-    statusMsg.textContent = "Cambios pendientes de guardar";
-    statusMsg.style.color = "#f2a13c";
-  });
-
-  // 4. Guardar valor global en Supabase
-  updateBtn.addEventListener('click', async () => {
-    updateBtn.disabled = true;
-    statusMsg.textContent = "Guardando cambio en la base de datos...";
-    statusMsg.style.color = "#bbf09b";
-
-    const { error } = await supabase
-      .from('kirameter')
-      .update({ value: parseInt(slider.value) })
-      .eq('id', 1);
-
-    if (error) {
-      statusMsg.textContent = "Error al actualizar: " + error.message;
-      statusMsg.style.color = "#ff6b6b";
-    } else {
-      statusMsg.textContent = "¡Kirameter actualizado para todos los usuarios!";
-    }
-    updateBtn.disabled = false;
-  });
-
-  // 5. Cerrar Sesión
-  logoutBtn.addEventListener('click', async () => {
-    await supabase.auth.signOut();
-    window.location.href = 'login.html';
-  });
-
-  // --- Fondo Animado (Canvas de partículas) ---
+  // --- Fondo Animado (Canvas) ---
   const canvas = document.getElementById('net');
   const ctx = canvas.getContext('2d');
   let width = canvas.width = window.innerWidth;
@@ -325,9 +332,7 @@
     }
   }
 
-  for (let i = 0; i < maxPoints; i++) {
-    points.push(new Point());
-  }
+  for (let i = 0; i < maxPoints; i++) points.push(new Point());
 
   function animate() {
     ctx.clearRect(0, 0, width, height);
@@ -356,7 +361,8 @@
     height = canvas.height = window.innerHeight;
   });
 
-  checkAuth();
+  // Ejecutar verificación de inmediato
+  window.addEventListener('DOMContentLoaded', checkAuth);
   animate();
 </script>
 </body>
